@@ -1,4 +1,4 @@
-import DiscordJS, { Intents } from 'discord.js';
+import DiscordJS, { Guild, GuildEmoji, Intents } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 dotenv.config();
@@ -7,6 +7,8 @@ const prefix = 'm?'
 
 let memeChannel = fs.readFileSync('mc.txt').toString();
 let startFromThisID = fs.readFileSync('startid.txt').toString();
+let emoji = fs.readFileSync('emoji.txt').toString();
+let reactionsArr = [];
 
 function setValue(x){
     memeChannel = x;
@@ -18,6 +20,10 @@ function setStartID(y){
     fs.writeFileSync('startid.txt', y);
 }
 
+function setEmoji(z){
+    emoji = z;
+    fs.writeFileSync('emoji.txt', z)
+}
 
 const client = new DiscordJS.Client({
     intents: [
@@ -30,20 +36,44 @@ const client = new DiscordJS.Client({
     ]
 });
 
+// let guild = client.guilds.fetch('821869954122121246')
+
+
 client.on('ready', () => {
     console.log('Ultimate MemeBOT is online!');
 })
 
 client.on('messageCreate', async (message) => {
 
+    const args = message.content.slice(prefix.length).split(/ +/);
+    const command = args.shift()?.toLowerCase();
+
+    if(command === 'setemoji' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !message.author.bot){
+        if(!args[0]){
+            message.channel.send('Invalid Syntax! Please use `m?setemoji anyEmojiHere`!')
+        } else if(args[0]){
+            setEmoji(args[0])
+            message.channel.send(`Reaction emoji set to: ${emoji}`)
+        }
+    } else if(command === 'setemoji' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !message.author.bot){
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
+    }
+
+    if(command === 'emoji' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !message.author.bot){
+        if(args[0]){
+            message.channel.send('Invalid Syntax! Use `m?emoji` to check current reaction emoji!')
+        } else if(!args[0]){
+            message.channel.send(`Current emoji is: ${emoji}`)
+        }
+    } else if(command === 'emoji' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !message.author.bot){
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
+    }
+
     if(message.channelId.toString() === memeChannel && !message.author.bot && message.attachments.size > 0){
-        message.react('💀')
+        message.react(emoji)
     }
 
     if(!message.content.startsWith(prefix) || message.author.bot) return;
-
-    const args = message.content.slice(prefix.length).split(/ +/);
-    const command = args.shift()?.toLowerCase();
 
     if(command === 'ping' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0]){
     message.reply(`Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(client.ws.ping)}ms`);
@@ -51,7 +81,7 @@ client.on('messageCreate', async (message) => {
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
 
-    if(command === 'setmc' && message.member?.permissions.has('MANAGE_CHANNELS', true)){
+    if(command === 'setmc' && message.member?.permissions.has('MANAGE_MESSAGES', true)){
         if(!message.mentions.channels.first() || !args[0]){
             message.channel.send('Please mention a channel!')
         }else if(args[0] !== message.mentions.channels.first()?.toString()){
@@ -62,52 +92,53 @@ client.on('messageCreate', async (message) => {
             setValue(message.mentions.channels.first()?.id);
             message.channel.send(`Successfully set meme channel to <#${memeChannel}>`)
         }
-    } else if(command === 'setmc' && !message.member?.permissions.has('MANAGE_CHANNELS', true)){
+    } else if(command === 'setmc' && !message.member?.permissions.has('MANAGE_MESSAGES', true)){
         message.channel.send('Insufficient permissions, `Manage Channels` required!');
     }
 
-    if(command === 'start' && message.member?.permissions.has('MANAGE_CHANNELS', true) && !args[0] && message.channelId.toString() === memeChannel){
+    if(command === 'start' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
         
         const latestmsg = await message.channel.send('Started! All memes under this message are tallied till an admin runs `m?stop` !');
         setStartID(latestmsg.id.toString());
-    } else if(command === 'start' && !message.member?.permissions.has('MANAGE_CHANNELS', true) && !args[0] && message.channelId.toString() === memeChannel){
+    } else if(command === 'start' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
         message.channel.send('Insufficient permissions, `Manage Channels` required!')
-    } else if(command === 'start' && message.member?.permissions.has('MANAGE_CHANNELS', true) && !args[0] && message.channelId.toString() !== memeChannel){
+    } else if(command === 'start' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() !== memeChannel){
         message.channel.send(`Cannot start here because meme channel is set to <#${memeChannel}>. Please use m?setmc <channel> to set-up a new meme channel!`)
     }
 
-    if(command === 'stop' && message.member?.permissions.has('MANAGE_CHANNELS', true) && !args[0] && message.channelId.toString() === memeChannel){
-        
-        const reactionsArr = []
+    if(command === 'stop' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
+
         const msgArr = await message.channel.messages.fetch({ limit: 100, after: startFromThisID})
+        // @ts-ignore
+        const emojiID = emoji.match(/(\d+)/)[0];
         for(let [key, msg] of msgArr) {
-            if(msg.reactions.cache.get('💀')){
+            if(msg.reactions.cache.get(emojiID)){
                 // @ts-ignore
-                reactionsArr.push((msg.reactions.cache.get('💀').count) - 1);
+                reactionsArr.push((msg.reactions.cache.get(emojiID).count) - 1);
             }
         }
         if(reactionsArr.length !== 0){
             let winner = Math.max(...reactionsArr);
             const winnerArr = [];
             for(let [winnerKey, winnerMsg] of msgArr){
-                if(winnerMsg.reactions.cache.get('💀')){
+                if(winnerMsg.reactions.cache.get(emojiID)){
                     // @ts-ignore
-                    if(winnerMsg.reactions.cache.get('💀').count === winner){
+                    if(winnerMsg.reactions.cache.get(emojiID).count === winner){
                         // @ts-ignore
                         winnerArr.push(winnerMsg.author.username);
                     }
                 }
             }
             if(winnerArr.length === 1){
-                message.channel.send(`The highest scoring meme of this week is from ${winnerArr}... scoring ${winner} votes!`);
+                message.channel.send(`The highest scoring meme of this week is from ${winnerArr}... scoring ${winner}${emoji}!`);
             } else if(winnerArr.length > 1){
-                message.channel.send(`The highest scoring memes of this week are from ${winnerArr}... scoring ${winner} votes each!`);
+                message.channel.send(`The highest scoring memes of this week are from ${winnerArr}... scoring ${winner}${emoji} each!`);
             }
 
         } else if(reactionsArr.length === 0){
             message.channel.send('There were no memes to tally!')
         }
-    } else if(command === 'stop' && !message.member?.permissions.has('MANAGE_CHANNELS', true) && !args[0] && message.channelId.toString() === memeChannel){
+    } else if(command === 'stop' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
         message.channel.send('Insufficient permissions, `Manage Channels` required!')
     }
     
