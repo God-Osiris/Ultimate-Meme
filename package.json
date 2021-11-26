@@ -1,0 +1,22 @@
+{
+  "name": "ultimate-memebot",
+  "version": "1.0.0",
+  "description": "A custom bot made by God Osiris#8705 for Ultimate Tournament!",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc -w --skipLibCheck"
+  },
+  "keywords": [],
+  "author": "God Osiris#8705",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^13.3.1",
+    "dotenv": "^10.0.0",
+    "fs": "^0.0.1-security",
+    "wokcommands": "^1.5.3"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.2"
+  }
+}
