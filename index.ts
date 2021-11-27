@@ -8,7 +8,6 @@ const prefix = 'm?'
 let memeChannel = fs.readFileSync('mc.txt').toString();
 let startFromThisID = fs.readFileSync('startid.txt').toString();
 let emoji = fs.readFileSync('emoji.txt').toString();
-let reactionsArr = [];
 
 function setValue(x){
     memeChannel = x;
@@ -36,11 +35,9 @@ const client = new DiscordJS.Client({
     ]
 });
 
-// let guild = client.guilds.fetch('821869954122121246')
-
-
 client.on('ready', () => {
     console.log('Ultimate MemeBOT is online!');
+    client.user?.setActivity(`your memes!`, {type: 'WATCHING'});
 })
 
 client.on('messageCreate', async (message) => {
@@ -55,7 +52,7 @@ client.on('messageCreate', async (message) => {
             setEmoji(args[0])
             message.channel.send(`Reaction emoji set to: ${emoji}`)
         }
-    } else if(command === 'setemoji' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !message.author.bot){
+    } else if(command === 'setemoji' && !message.member?.permissions.has('MANAGE_MESSAGES', false) && !message.author.bot){
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
 
@@ -76,7 +73,10 @@ client.on('messageCreate', async (message) => {
     if(!message.content.startsWith(prefix) || message.author.bot) return;
 
     if(command === 'ping' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0]){
-    message.reply(`Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(client.ws.ping)}ms`);
+        message.reply('Calculating latency...').then(resultMessage => {
+            const ping = resultMessage.createdTimestamp - message.createdTimestamp
+            resultMessage.edit(`Bot latency: ${ping}ms\nAPI Latency: ${client.ws.ping}ms`)
+        })
     } else if(command === 'ping' && !message.member?.permissions.has('MANAGE_MESSAGES', true)){
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
@@ -93,7 +93,7 @@ client.on('messageCreate', async (message) => {
             message.channel.send(`Successfully set meme channel to <#${memeChannel}>`)
         }
     } else if(command === 'setmc' && !message.member?.permissions.has('MANAGE_MESSAGES', true)){
-        message.channel.send('Insufficient permissions, `Manage Channels` required!');
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
 
     if(command === 'start' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
@@ -101,20 +101,24 @@ client.on('messageCreate', async (message) => {
         const latestmsg = await message.channel.send('Started! All memes under this message are tallied till an admin runs `m?stop` !');
         setStartID(latestmsg.id.toString());
     } else if(command === 'start' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
-        message.channel.send('Insufficient permissions, `Manage Channels` required!')
+        message.channel.send('Insufficient permissions, `Manage Messages` required!')
     } else if(command === 'start' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() !== memeChannel){
         message.channel.send(`Cannot start here because meme channel is set to <#${memeChannel}>. Please use m?setmc <channel> to set-up a new meme channel!`)
+    } else if(command === 'start' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() !== memeChannel){
+        message.channel.send('Insufficient permissions, `Manage Messages` required!')
     }
 
     if(command === 'stop' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
 
         const msgArr = await message.channel.messages.fetch({ limit: 100, after: startFromThisID})
+        const reactionsArr = [];
         // @ts-ignore
         const emojiID = emoji.match(/(\d+)/)[0];
         for(let [key, msg] of msgArr) {
             if(msg.reactions.cache.get(emojiID)){
                 // @ts-ignore
-                reactionsArr.push((msg.reactions.cache.get(emojiID).count) - 1);
+                reactionsArr.push((msg.reactions.cache.get(emojiID).count));
+                
             }
         }
         if(reactionsArr.length !== 0){
@@ -139,7 +143,17 @@ client.on('messageCreate', async (message) => {
             message.channel.send('There were no memes to tally!')
         }
     } else if(command === 'stop' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() === memeChannel){
-        message.channel.send('Insufficient permissions, `Manage Channels` required!')
+        message.channel.send('Insufficient permissions, `Manage Messages` required!')
+    } else if(command === 'stop' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() !== memeChannel){
+        message.channel.send(`Cannot stop here because meme channel is set to <#${memeChannel}>.`)
+    } else if(command === 'stop' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0] && message.channelId.toString() !== memeChannel){
+        message.channel.send('Insufficient permissions, `Manage Messages` required!')
+    }
+
+    if(command === 'help' && message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0]){
+        message.channel.send('The prefix is m?.\n`m?ping`: Returns bot latency and Discord.js API latency.\n`m?help`: Shows this message.\n`m?emoji`: Shows currently set reaction emoji.\n`m?setemoji emoji`: Sets the reaction emoji.\n`m?setmc #channel`: Sets the meme channel.\n`m?start`: Any meme under this message will be reacted automatically and will be in the final tally.\n`m?stop`: Tallies the reaction count of all memes and announces the winner.')
+    } else if(command === 'help' && !message.member?.permissions.has('MANAGE_MESSAGES', true) && !args[0]){
+        message.channel.send('Insufficient permissions, `Manage Messages` required!')
     }
     
 })

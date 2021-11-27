@@ -39,7 +39,6 @@ const prefix = 'm?';
 let memeChannel = fs_1.default.readFileSync('mc.txt').toString();
 let startFromThisID = fs_1.default.readFileSync('startid.txt').toString();
 let emoji = fs_1.default.readFileSync('emoji.txt').toString();
-let reactionsArr = [];
 function setValue(x) {
     memeChannel = x;
     fs_1.default.writeFileSync('mc.txt', x);
@@ -62,12 +61,13 @@ const client = new discord_js_1.default.Client({
         discord_js_1.Intents.FLAGS.GUILD_MESSAGE_REACTIONS
     ]
 });
-// let guild = client.guilds.fetch('821869954122121246')
 client.on('ready', () => {
+    var _a;
     console.log('Ultimate MemeBOT is online!');
+    (_a = client.user) === null || _a === void 0 ? void 0 : _a.setActivity(`your memes!`, { type: 'WATCHING' });
 });
 client.on('messageCreate', (message) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
     const args = message.content.slice(prefix.length).split(/ +/);
     const command = (_a = args.shift()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
     if (command === 'setemoji' && ((_b = message.member) === null || _b === void 0 ? void 0 : _b.permissions.has('MANAGE_MESSAGES', true)) && !message.author.bot) {
@@ -79,7 +79,7 @@ client.on('messageCreate', (message) => __awaiter(void 0, void 0, void 0, functi
             message.channel.send(`Reaction emoji set to: ${emoji}`);
         }
     }
-    else if (command === 'setemoji' && !((_c = message.member) === null || _c === void 0 ? void 0 : _c.permissions.has('MANAGE_MESSAGES', true)) && !message.author.bot) {
+    else if (command === 'setemoji' && !((_c = message.member) === null || _c === void 0 ? void 0 : _c.permissions.has('MANAGE_MESSAGES', false)) && !message.author.bot) {
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
     if (command === 'emoji' && ((_d = message.member) === null || _d === void 0 ? void 0 : _d.permissions.has('MANAGE_MESSAGES', true)) && !message.author.bot) {
@@ -99,7 +99,10 @@ client.on('messageCreate', (message) => __awaiter(void 0, void 0, void 0, functi
     if (!message.content.startsWith(prefix) || message.author.bot)
         return;
     if (command === 'ping' && ((_f = message.member) === null || _f === void 0 ? void 0 : _f.permissions.has('MANAGE_MESSAGES', true)) && !args[0]) {
-        message.reply(`Latency is ${Date.now() - message.createdTimestamp}ms. API Latency is ${Math.round(client.ws.ping)}ms`);
+        message.reply('Calculating latency...').then(resultMessage => {
+            const ping = resultMessage.createdTimestamp - message.createdTimestamp;
+            resultMessage.edit(`Bot latency: ${ping}ms\nAPI Latency: ${client.ws.ping}ms`);
+        });
     }
     else if (command === 'ping' && !((_g = message.member) === null || _g === void 0 ? void 0 : _g.permissions.has('MANAGE_MESSAGES', true))) {
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
@@ -120,26 +123,30 @@ client.on('messageCreate', (message) => __awaiter(void 0, void 0, void 0, functi
         }
     }
     else if (command === 'setmc' && !((_o = message.member) === null || _o === void 0 ? void 0 : _o.permissions.has('MANAGE_MESSAGES', true))) {
-        message.channel.send('Insufficient permissions, `Manage Channels` required!');
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
     if (command === 'start' && ((_p = message.member) === null || _p === void 0 ? void 0 : _p.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
         const latestmsg = yield message.channel.send('Started! All memes under this message are tallied till an admin runs `m?stop` !');
         setStartID(latestmsg.id.toString());
     }
     else if (command === 'start' && !((_q = message.member) === null || _q === void 0 ? void 0 : _q.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
-        message.channel.send('Insufficient permissions, `Manage Channels` required!');
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
     else if (command === 'start' && ((_r = message.member) === null || _r === void 0 ? void 0 : _r.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() !== memeChannel) {
         message.channel.send(`Cannot start here because meme channel is set to <#${memeChannel}>. Please use m?setmc <channel> to set-up a new meme channel!`);
     }
-    if (command === 'stop' && ((_s = message.member) === null || _s === void 0 ? void 0 : _s.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
+    else if (command === 'start' && !((_s = message.member) === null || _s === void 0 ? void 0 : _s.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() !== memeChannel) {
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
+    }
+    if (command === 'stop' && ((_t = message.member) === null || _t === void 0 ? void 0 : _t.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
         const msgArr = yield message.channel.messages.fetch({ limit: 100, after: startFromThisID });
+        const reactionsArr = [];
         // @ts-ignore
         const emojiID = emoji.match(/(\d+)/)[0];
         for (let [key, msg] of msgArr) {
             if (msg.reactions.cache.get(emojiID)) {
                 // @ts-ignore
-                reactionsArr.push((msg.reactions.cache.get(emojiID).count) - 1);
+                reactionsArr.push((msg.reactions.cache.get(emojiID).count));
             }
         }
         if (reactionsArr.length !== 0) {
@@ -165,8 +172,20 @@ client.on('messageCreate', (message) => __awaiter(void 0, void 0, void 0, functi
             message.channel.send('There were no memes to tally!');
         }
     }
-    else if (command === 'stop' && !((_t = message.member) === null || _t === void 0 ? void 0 : _t.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
-        message.channel.send('Insufficient permissions, `Manage Channels` required!');
+    else if (command === 'stop' && !((_u = message.member) === null || _u === void 0 ? void 0 : _u.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() === memeChannel) {
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
+    }
+    else if (command === 'stop' && ((_v = message.member) === null || _v === void 0 ? void 0 : _v.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() !== memeChannel) {
+        message.channel.send(`Cannot stop here because meme channel is set to <#${memeChannel}>.`);
+    }
+    else if (command === 'stop' && !((_w = message.member) === null || _w === void 0 ? void 0 : _w.permissions.has('MANAGE_MESSAGES', true)) && !args[0] && message.channelId.toString() !== memeChannel) {
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
+    }
+    if (command === 'help' && ((_x = message.member) === null || _x === void 0 ? void 0 : _x.permissions.has('MANAGE_MESSAGES', true)) && !args[0]) {
+        message.channel.send('The prefix is m?.\n`m?ping`: Returns bot latency and Discord.js API latency.\n`m?help`: Shows this message.\n`m?emoji`: Shows currently set reaction emoji.\n`m?setemoji emoji`: Sets the reaction emoji.\n`m?setmc #channel`: Sets the meme channel.\n`m?start`: Any meme under this message will be reacted automatically and will be in the final tally.\n`m?stop`: Tallies the reaction count of all memes and announces the winner.');
+    }
+    else if (command === 'help' && !((_y = message.member) === null || _y === void 0 ? void 0 : _y.permissions.has('MANAGE_MESSAGES', true)) && !args[0]) {
+        message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
 }));
 client.login(process.env.TOKEN);
