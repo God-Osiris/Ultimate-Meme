@@ -66,8 +66,13 @@ client.on('messageCreate', async (message) => {
         message.channel.send('Insufficient permissions, `Manage Messages` required!');
     }
 
-    if(message.channelId.toString() === memeChannel && !message.author.bot && message.attachments.size > 0){
-        message.react(emoji)
+    if(message.channelId.toString() === memeChannel && !message.author.bot){
+        if(message.attachments.size > 0){
+            message.react(emoji);
+        } else if(!message.member?.permissions.has('MANAGE_MESSAGES')){
+            message.author.send('Your meme does not contain an attachment so it was deleted. Please do not send text messages or link embeds in the channel, only attachments work.')
+            message.delete()
+        }
     }
 
     if(!message.content.startsWith(prefix) || message.author.bot) return;
@@ -124,19 +129,21 @@ client.on('messageCreate', async (message) => {
         if(reactionsArr.length !== 0){
             let winner = Math.max(...reactionsArr);
             const winnerArr = [];
+            let winningMeme;
             for(let [winnerKey, winnerMsg] of msgArr){
                 if(winnerMsg.reactions.cache.get(emojiID)){
                     // @ts-ignore
                     if(winnerMsg.reactions.cache.get(emojiID).count === winner){
                         // @ts-ignore
-                        winnerArr.push(winnerMsg.author.username);
+                        winnerArr.push(winnerMsg.author.id);
+                        winningMeme = winnerMsg.attachments.first()?.url;
                     }
                 }
             }
             if(winnerArr.length === 1){
-                message.channel.send(`The highest scoring meme of this week is from ${winnerArr}... scoring ${winner}${emoji}!`);
+                message.channel.send(`The highest scoring meme of this week is from <@${winnerArr}>... scoring ${winner}${emoji}. Please DM <@831342804457357354> to claim your 25$ steam giftcard!\n${winningMeme}`);
             } else if(winnerArr.length > 1){
-                message.channel.send(`The highest scoring memes of this week are from ${winnerArr}... scoring ${winner}${emoji} each!`);
+                message.channel.send(`The highest scoring memes of this week are from ${winnerArr.map(u => `<@${u}>`)}... scoring ${winner}${emoji} each! It's a tie admins, what you gonna do about it?`);
             }
 
         } else if(reactionsArr.length === 0){
